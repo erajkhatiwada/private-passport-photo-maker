@@ -1,0 +1,17 @@
+{
+  "name": "private-passport-photo-maker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Private, in-browser passport photo maker. Your photo never leaves your device.",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/setup.mjs",
+    "setup": "node scripts/setup.mjs",
+    "start": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/serve.mjs dist"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.3"
+  }
+}

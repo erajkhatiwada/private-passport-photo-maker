@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!--
+    Privacy guarantee enforced by the browser: this page may only load files from its own
+    origin and may not connect to any other server. Your photo has nowhere to go.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob:; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Make passport and visa photos in your browser. AI crops and fixes the background on your device — your photo is never uploaded.">
+  <title>Private Passport Photo Maker</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="3" width="22" height="26" rx="4" fill="currentColor" opacity=".14"/><rect x="5" y="3" width="22" height="26" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="13" r="4.5" fill="currentColor"/><path d="M8.5 25c1.2-4 4.1-6 7.5-6s6.3 2 7.5 6" fill="currentColor"/></svg>
+      <span>Passport Photo</span>
+    </a>
+    <button class="privacy-pill" id="privacyBtn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="currentColor" opacity=".18"/><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>100% on your device — nothing is uploaded</span>
+    </button>
+  </header>
+
+  <main>
+    <!-- Start -->
+    <section id="startView" class="start">
+      <div class="hero">
+        <h1>Passport photos, made <span class="accent">privately</span> in your browser.</h1>
+        <p>AI finds your face, suggests the right crop for your country and can replace the background. Your photo never leaves this device.</p>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <svg class="dz-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="10" width="36" height="28" rx="5" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="24" cy="24" r="7" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M17 10l2.5-4h9L31 10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/></svg>
+        <p class="dz-title">Drop a photo here</p>
+        <div class="dz-actions">
+          <label class="btn primary">
+            <input type="file" id="fileInput" accept="image/*" hidden>
+            Choose photo
+          </label>
+          <button class="btn" id="webcamBtn" type="button">Use camera</button>
+        </div>
+        <p class="model-status" id="modelStatus" aria-live="polite">
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="modelStatusText">Loading AI models (one-time download)…</span>
+        </p>
+      </div>
+
+      <div class="trust">
+        <div class="trust-item">
+          <h3>Nothing is uploaded</h3>
+          <p>Face detection and background removal run inside your browser. There is no server that could receive your photo.</p>
+        </div>
+        <div class="trust-item">
+          <h3>Blocked by your browser</h3>
+          <p>A strict security policy forbids this page from connecting to any other website, so even a bug can't send your photo anywhere.</p>
+        </div>
+        <div class="trust-item">
+          <h3>Works offline</h3>
+          <p>Once the AI is ready, turn off your Wi-Fi — everything keeps working. Close the tab and the photo is gone.</p>
+        </div>
+      </div>
+
+      <details class="tips">
+        <summary>Tips for a photo that gets accepted</summary>
+        <ul>
+          <li>Face the camera straight on, with a neutral expression and mouth closed.</li>
+          <li>Use even light with no shadows on your face or behind you.</li>
+          <li>Leave space above your head and include your shoulders.</li>
+          <li>Remove glasses, and keep hair away from your eyes.</li>
+          <li>Hold the camera at eye level, about an arm's length away (or have someone take it).</li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- Editor -->
+    <section id="editorView" class="editor" hidden>
+      <div class="stage">
+        <div class="toolbar" role="toolbar" aria-label="Crop tools">
+          <button class="icon-btn" id="zoomOut" type="button" title="Zoom out" aria-label="Zoom out">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11h6M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <button class="icon-btn" id="zoomIn" type="button" title="Zoom in" aria-label="Zoom in">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11h6M11 8v6M16 16l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          </button>
+          <label class="rotate">
+            <span>Rotate</span>
+            <input type="range" id="rotate" min="-30" max="30" step="0.1" value="0">
+            <output id="rotateOut">0.0°</output>
+          </label>
+          <span class="spacer"></span>
+          <label class="switch">
+            <input type="checkbox" id="guidesToggle" checked>
+            <span>Guides</span>
+          </label>
+          <button class="btn small" id="resetBtn" type="button" title="Go back to the AI suggestion">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.5L12 15l-1.8-4.5L5.5 9l4.7-1.4L12 3ZM18.5 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1Z" fill="currentColor"/></svg>
+            AI crop
+          </button>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="editorCanvas" tabindex="0" aria-label="Crop editor. Drag to move the box, arrow keys to nudge, plus and minus to zoom, square brackets to rotate."></canvas>
+          <div class="busy" id="busy" hidden>
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="busyText">Working…</span>
+          </div>
+        </div>
+        <p class="hint">Drag the box to move it · drag a corner to resize · drag the blue knob to rotate · scroll or pinch to zoom</p>
+      </div>
+
+      <aside class="panel">
+        <ol class="steps" aria-label="Progress">
+          <li class="active" aria-current="step"><span class="num">1</span> Adjust &amp; check</li>
+          <li><span class="num">2</span> Download</li>
+        </ol>
+
+        <div class="card">
+          <h2>Document</h2>
+          <select id="preset" aria-label="Document type"></select>
+          <div class="custom-size" id="customFields" hidden>
+            <label>Width <input type="number" id="customW" min="10" max="200" step="0.5" value="35"> mm</label>
+            <label>Height <input type="number" id="customH" min="10" max="200" step="0.5" value="45"> mm</label>
+          </div>
+          <p class="spec" id="specText"></p>
+        </div>
+
+        <div class="card">
+          <h2>Background</h2>
+          <div class="segmented" role="radiogroup" aria-label="Background">
+            <button type="button" role="radio" aria-checked="true" data-bg="original" class="active">Original</button>
+            <button type="button" role="radio" aria-checked="false" data-bg="color">Replace with colour</button>
+          </div>
+          <div id="bgOptions" class="bg-options" hidden>
+            <div class="swatches" id="swatches">
+              <button type="button" class="swatch sw-white" data-color="#ffffff" title="White" aria-label="White"></button>
+              <button type="button" class="swatch sw-offwhite" data-color="#f5f5f0" title="Off-white" aria-label="Off-white"></button>
+              <button type="button" class="swatch sw-grey" data-color="#e8e8e8" title="Light grey" aria-label="Light grey"></button>
+              <button type="button" class="swatch sw-blue" data-color="#dbe7f3" title="Light blue" aria-label="Light blue"></button>
+              <label class="swatch custom" title="Pick any colour">
+                <input type="color" id="bgColor" value="#ffffff" aria-label="Custom background colour">
+              </label>
+            </div>
+            <label class="slider">
+              <span>Edge</span>
+              <span class="slider-end">Soft</span>
+              <input type="range" id="edge" min="0" max="100" value="50">
+              <span class="slider-end">Tight</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Check</h2>
+          <div class="result">
+            <canvas id="preview" aria-label="Preview of the final photo"></canvas>
+            <div class="result-side">
+              <p class="summary" id="summary"></p>
+              <p class="dims" id="dims"></p>
+            </div>
+          </div>
+          <ul class="checks" id="checks"></ul>
+          <p class="disclaimer">Automatic checks are a guide. Always confirm your country's official photo rules.</p>
+        </div>
+
+        <div class="next">
+          <p class="continue-note" id="continueNote" hidden></p>
+          <button class="btn primary block lg" id="continueBtn" type="button">Looks good — continue to download →</button>
+          <button class="btn ghost block" id="startOver" type="button">Start over — clear this photo</button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Download -->
+    <section id="downloadView" class="download" hidden>
+      <div class="dl-stage" id="dlStage">
+        <figure class="dl-fig">
+          <canvas id="finalPreview" aria-label="Your passport photo"></canvas>
+          <figcaption id="finalCaption"></figcaption>
+        </figure>
+        <figure class="dl-fig">
+          <canvas id="sheetPreview" class="paper" aria-label="Print sheet preview"></canvas>
+          <figcaption id="sheetCaption"></figcaption>
+        </figure>
+      </div>
+
+      <aside class="panel">
+        <ol class="steps" aria-label="Progress">
+          <li class="done"><button type="button" id="backStep"><span class="num">✓</span> Adjust &amp; check</button></li>
+          <li class="active" aria-current="step"><span class="num">2</span> Download</li>
+        </ol>
+
+        <div class="card">
+          <h2>Digital photo</h2>
+          <p class="card-sub">For online applications, or to print yourself.</p>
+          <div class="field">
+            <span>Format</span>
+            <div class="segmented" role="radiogroup" aria-label="Photo format" data-group="photoFormat">
+              <button type="button" role="radio" aria-checked="true" data-value="jpg" class="active">JPG</button>
+              <button type="button" role="radio" aria-checked="false" data-value="png">PNG</button>
+            </div>
+          </div>
+          <label class="field">
+            <span>Resolution</span>
+            <select id="dpi">
+              <option value="600">600 DPI — online forms &amp; high quality</option>
+              <option value="300">300 DPI — standard print</option>
+            </select>
+          </label>
+          <button class="btn primary block" id="downloadPhoto" type="button">Download photo</button>
+          <p class="fine" id="photoInfo"></p>
+        </div>
+
+        <div class="card">
+          <h2>Print sheet</h2>
+          <p class="card-sub">Several copies on one page with cutting lines — for a photo shop or your own printer.</p>
+          <label class="field">
+            <span>Paper</span>
+            <select id="sheet"></select>
+          </label>
+          <div class="field">
+            <span>Format</span>
+            <div class="segmented three" role="radiogroup" aria-label="Print sheet format" data-group="sheetFormat">
+              <button type="button" role="radio" aria-checked="true" data-value="pdf" class="active">PDF</button>
+              <button type="button" role="radio" aria-checked="false" data-value="jpg">JPG</button>
+              <button type="button" role="radio" aria-checked="false" data-value="png">PNG</button>
+            </div>
+          </div>
+          <button class="btn primary block" id="downloadSheet" type="button">Download print sheet</button>
+          <p class="fine" id="sheetInfo"></p>
+        </div>
+
+        <p class="fine center">Files are created on this device and contain no location or camera data.</p>
+        <div class="next">
+          <button class="btn block" id="backBtn" type="button">← Back to editing</button>
+          <button class="btn ghost block" id="startOver2" type="button">Start over — clear this photo</button>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>No accounts, no tracking, no uploads · <button type="button" class="linklike" id="privacyLink">How your privacy is protected</button></p>
+  </footer>
+
+  <div class="toast" id="toast" role="alert" hidden></div>
+
+  <dialog id="cameraDialog" class="camera" aria-label="Take a photo">
+    <div class="cam-stage">
+      <video id="camVideo" playsinline muted autoplay></video>
+      <div class="cam-guide" aria-hidden="true"></div>
+      <div class="cam-count" id="camCount" hidden></div>
+      <p class="cam-error" id="camError" hidden></p>
+    </div>
+    <div class="cam-bar">
+      <button class="btn" id="camCancel" type="button">Cancel</button>
+      <button class="btn" id="camSwitch" type="button" hidden>Switch camera</button>
+      <label class="switch"><input type="checkbox" id="camTimer"> <span>3 s timer</span></label>
+      <button class="btn primary" id="camShoot" type="button" disabled>Take photo</button>
+    </div>
+    <p class="cam-note">Fit your face in the oval and look straight at the camera. The video never leaves this device.</p>
+  </dialog>
+
+  <dialog id="privacyDialog" class="privacy" aria-labelledby="privacyTitle">
+    <h2 id="privacyTitle">How your photo stays private</h2>
+    <ul>
+      <li><strong>Everything runs in your browser.</strong> The AI models (Google MediaPipe) are downloaded once from this site and run on your device with WebAssembly and your GPU.</li>
+      <li><strong>There is no server.</strong> This is a static website with no upload code and nowhere to upload to.</li>
+      <li><strong>Enforced by your browser.</strong> A Content-Security-Policy only allows connections back to this site's own files. Any attempt to send data elsewhere is blocked — including the AI library's built-in usage statistics.</li>
+      <li><strong>Check it yourself.</strong> Turn off your Wi-Fi once the AI is ready — everything still works. Or open your browser's developer tools and watch the Network tab while you edit.</li>
+      <li><strong>Nothing is stored.</strong> No cookies, no local storage of your photo. Closing the tab or “Start over” clears it.</li>
+      <li><strong>Clean downloads.</strong> Saved photos are freshly generated pixels, without the location or camera metadata your original may contain.</li>
+    </ul>
+    <p class="net-count" id="netCount">Network requests since you added your photo: —</p>
+    <button class="btn primary" id="privacyClose" type="button">Got it</button>
+  </dialog>
+</body>
+</html>
