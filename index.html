@@ -21,10 +21,21 @@
       <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="3" width="22" height="26" rx="4" fill="currentColor" opacity=".14"/><rect x="5" y="3" width="22" height="26" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="13" r="4.5" fill="currentColor"/><path d="M8.5 25c1.2-4 4.1-6 7.5-6s6.3 2 7.5 6" fill="currentColor"/></svg>
       <span>Passport Photo</span>
     </a>
-    <button class="privacy-pill" id="privacyBtn" type="button">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="currentColor" opacity=".18"/><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>100% on your device — nothing is uploaded</span>
-    </button>
+    <div class="topbar-actions">
+      <button class="privacy-pill" id="privacyBtn" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="currentColor" opacity=".18"/><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m8.5 12 2.5 2.5 4.5-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="pill-long">100% on your device — nothing is uploaded</span>
+        <span class="pill-short">Nothing uploaded</span>
+      </button>
+      <button class="net-pill" id="netPill" type="button" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 20V4M3.5 7.5 7 4l3.5 3.5M17 4v16m-3.5-3.5L17 20l3.5-3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span><span id="netPillCount">0</span><span id="netPillLabel"> network requests</span></span>
+      </button>
+      <a class="gh-link" href="https://github.com/erajkhatiwada/private-passport-photo-maker" target="_blank" rel="noopener noreferrer" aria-label="Source code on GitHub" title="Source code on GitHub">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        <span>Code</span>
+      </a>
+    </div>
   </header>
 
   <main>
@@ -129,12 +140,13 @@
           <p class="spec" id="specText"></p>
         </div>
 
-        <div class="card">
+        <div class="card" id="bgCard">
           <h2>Background</h2>
           <div class="segmented" role="radiogroup" aria-label="Background">
             <button type="button" role="radio" aria-checked="true" data-bg="original" class="active">Original</button>
             <button type="button" role="radio" aria-checked="false" data-bg="color">Replace with colour</button>
           </div>
+          <p class="bg-hint" id="bgHint" hidden>This background may be rejected. Replace it with a plain colour.</p>
           <div id="bgOptions" class="bg-options" hidden>
             <div class="swatches" id="swatches">
               <button type="button" class="swatch sw-white" data-color="#ffffff" title="White" aria-label="White"></button>
@@ -200,8 +212,8 @@
           <div class="field">
             <span>Format</span>
             <div class="segmented" role="radiogroup" aria-label="Photo format" data-group="photoFormat">
-              <button type="button" role="radio" aria-checked="true" data-value="jpg" class="active">JPG</button>
-              <button type="button" role="radio" aria-checked="false" data-value="png">PNG</button>
+              <button type="button" role="radio" aria-checked="true" data-value="png" class="active">PNG</button>
+              <button type="button" role="radio" aria-checked="false" data-value="jpg">JPG</button>
             </div>
           </div>
           <label class="field">
@@ -226,8 +238,8 @@
             <span>Format</span>
             <div class="segmented three" role="radiogroup" aria-label="Print sheet format" data-group="sheetFormat">
               <button type="button" role="radio" aria-checked="true" data-value="pdf" class="active">PDF</button>
-              <button type="button" role="radio" aria-checked="false" data-value="jpg">JPG</button>
               <button type="button" role="radio" aria-checked="false" data-value="png">PNG</button>
+              <button type="button" role="radio" aria-checked="false" data-value="jpg">JPG</button>
             </div>
           </div>
           <button class="btn primary block" id="downloadSheet" type="button">Download print sheet</button>
@@ -244,7 +256,7 @@
   </main>
 
   <footer class="footer">
-    <p>No accounts, no tracking, no uploads · <button type="button" class="linklike" id="privacyLink">How your privacy is protected</button></p>
+    <p>No accounts, no tracking, no uploads · <button type="button" class="linklike" id="privacyLink">How your privacy is protected</button> · <a class="linklike" href="https://github.com/erajkhatiwada/private-passport-photo-maker" target="_blank" rel="noopener noreferrer">Open source on GitHub</a></p>
   </footer>
 
   <div class="toast" id="toast" role="alert" hidden></div>

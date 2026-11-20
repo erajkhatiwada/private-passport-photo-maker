@@ -3,7 +3,7 @@ import { loadModels, detectFaces } from './ai.js';
 import {
   analyzeFace, faceRegion, findCrown, suggestBox, defaultBox, headTarget, boxBounds, clipRect, runChecks,
 } from './geometry.js';
-import { computeMatte, buildCutout, containsRect } from './matte.js';
+import { computeMatte, buildCutout, containsRect, backgroundStats } from './matte.js';
 import {
   drawCrop, renderPhoto, renderSheet, sheetLayout, sheetPdf, toJpegBlob, toPngBlob, downloadBlob, mmToPx,
 } from './render.js';
@@ -32,7 +32,7 @@ const state = {
   custom: { w: 35, h: 45 },
   dpi: 600,
   sheet: '4x6',
-  photoFormat: 'jpg',
+  photoFormat: 'png',
   sheetFormat: 'pdf',
 };
 
@@ -141,7 +141,7 @@ function applySuggestion() {
   if (!state.source) return;
   const s = spec();
   const { width: W, height: H } = state.source;
-  state.box = state.face ? suggestBox(state.face, state.crown.point, s) : defaultBox(W, H, s);
+  state.box = state.face ? suggestBox(state.face, state.crown.point, s, W, H) : defaultBox(W, H, s);
   editor.spec = s;
   editor.guide = state.face ? headTarget(state.face, state.crown.point, s) : null;
   editor.markers = state.face
@@ -222,7 +222,9 @@ function renderChecks() {
     H: state.source.height,
     outW: mmToPx(s.w, state.dpi),
     bgMode: state.bgMode,
+    background: state.matte && state.bgMode !== 'color' ? backgroundStats(state.matte, state.box) : null,
   });
+  setBgAttention(list.some((c) => c.fix === 'background'));
   const ul = $('checks');
   ul.replaceChildren(
     ...list.map((c) => {
@@ -393,7 +395,14 @@ function clearPhoto() {
   setBusy(null);
   for (const id of ['preview', 'finalPreview', 'sheetPreview']) $(id).width = 0;
   $('checks').replaceChildren();
+  setBgAttention(false);
   stopNetworkWatch();
+}
+
+// Highlight the Background card when the original background fails its check.
+function setBgAttention(on) {
+  $('bgCard').classList.toggle('attention', on);
+  $('bgHint').hidden = !on;
 }
 
 function setBgMode(mode) {
@@ -451,10 +460,19 @@ function stopNetworkWatch() {
   updateNetCount();
 }
 function updateNetCount() {
-  $('netCount').textContent =
+  const text =
     watchStart === null
       ? 'Network requests since you added your photo: — (no photo yet)'
       : `Network requests since you added your photo: ${netRequests}`;
+  $('netCount').textContent = text;
+  // While a photo is open, the top bar shows the live counter in place of the privacy pill.
+  const pill = $('netPill');
+  pill.hidden = watchStart === null;
+  $('privacyBtn').hidden = watchStart !== null;
+  pill.title = text;
+  pill.setAttribute('aria-label', text);
+  $('netPillCount').textContent = netRequests;
+  $('netPillLabel').textContent = netRequests === 1 ? ' network request' : ' network requests';
 }
 
 const pick = (o, ...keys) => Object.fromEntries(keys.map((k) => [k, o[k]]));
@@ -462,7 +480,10 @@ const pick = (o, ...keys) => Object.fromEntries(keys.map((k) => [k, o[k]]));
 // ---------- wire up ----------
 function init() {
   const presetSel = $('preset');
-  for (const p of PRESETS) presetSel.add(new Option(p.custom ? p.label : `${p.label} (${p.size})`, p.id));
+  for (const p of PRESETS) {
+    const text = p.custom ? p.label : `${p.label} (${p.size})`;
+    presetSel.add(new Option(`${p.flag} ${text}`, p.id));
+  }
   presetSel.value = state.presetId;
   presetSel.addEventListener('change', () => {
     state.presetId = presetSel.value;
@@ -582,7 +603,7 @@ function init() {
   }
 
   const privacy = $('privacyDialog');
-  for (const id of ['privacyBtn', 'privacyLink']) $(id).addEventListener('click', () => privacy.showModal());
+  for (const id of ['privacyBtn', 'privacyLink', 'netPill']) $(id).addEventListener('click', () => privacy.showModal());
   $('privacyClose').addEventListener('click', () => privacy.close());
 
   updateSpecText();

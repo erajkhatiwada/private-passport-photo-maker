@@ -1,6 +1,17 @@
 # Private Passport Photo Maker
 
-Make passport and visa photos in the browser. AI finds the face, suggests the right crop for the selected country and can replace the background. **Your photo never leaves your device.**
+**▶ Try it: [erajkhatiwada.github.io/private-passport-photo-maker](https://erajkhatiwada.github.io/private-passport-photo-maker/)**
+
+Make passport and visa photos in the browser, with AI doing the hard parts. **Your photo never leaves your device.**
+
+What the AI does for you:
+
+- **Finds your face:** locates the eyes, chin and head tilt.
+- **Crops to spec:** sizes, centres and straightens the photo for the selected country's rules.
+- **Replaces the background:** separates you from the background and swaps in white, light grey, light blue or any colour.
+- **Checks the result:** head size, eye height, tilt, eyes open, neutral expression and more.
+
+The AI runs entirely on your device. Google's MediaPipe models are downloaded once from this site and run inside your browser, so no photo is sent to any server.
 
 ## Privacy model
 
@@ -22,11 +33,11 @@ The privacy dialog in the app also shows a live count of network requests made s
 - **AI crop:** [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker) finds the eyes, chin and head tilt. The person mask from the [Selfie Multiclass segmenter](https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter) finds the top of the head. The app then sizes and places a rotated crop box so the head height and eye line meet the selected spec, and the eyes come out level.
 - **Editor:** drag to move, corners to resize, knob to rotate, wheel or pinch to zoom, arrow keys to nudge. Guides show the target head oval and the eye band.
 - **Background:** keep the original, or replace it with white, off-white, light grey, light blue or any colour. Edges are refined with a colour-guided filter, and an edge slider runs from soft to tight.
-- **Checks:** head size, eye height, head cut off, centring, tilt, facing the camera, eyes open, neutral expression, resolution, and whether the crop goes past the photo edge.
+- **Checks:** head size, eye height, head cut off, centring, tilt, facing the camera, eyes open, neutral expression, resolution, whether the crop goes past the photo edge, and whether the original background is plain and light.
 - **Sizes:** US 2×2 in, UK 35×45, Schengen/EU/ICAO 35×45, Canada 50×70, China 33×48, or a custom size.
 - **Two steps:** first adjust and check (crop, document, background, checks), then download.
-- **Digital photo:** JPG or PNG at 300 or 600 DPI. The DPI is written into the file (JFIF / `pHYs`) so it prints at true size.
-- **Print sheet:** 4×6, 5×7, A4 or Letter, as a **PDF** (true page size, the photo embedded once, vector cutting lines) or a 300 DPI **JPG/PNG**. The PDF is written by hand in `js/render.js`, with no PDF library.
+- **Digital photo:** PNG or JPG at 300 or 600 DPI. The DPI is written into the file (JFIF / `pHYs`) so it prints at true size.
+- **Print sheet:** 4×6, 5×7, A4 or Letter, as a **PDF** (true page size, the photo embedded once, vector cutting lines) or a 300 DPI **PNG/JPG**. The PDF is written by hand in `js/render.js`, with no PDF library.
 
 > Automatic checks are a guide. Always confirm your country's official photo requirements.
 

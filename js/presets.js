@@ -1,4 +1,5 @@
 // Photo specifications. All sizes are in millimetres.
+//   flag          – emoji shown before the label in the document picker
 //   head          – allowed chin-to-crown (top of head) height range
 //   eyeFromBottom – allowed eye-line height measured from the bottom edge (only where the rule defines one)
 //   topMargin     – fixed gap above the head (only where the rule defines one)
@@ -6,6 +7,7 @@
 export const PRESETS = [
   {
     id: 'us',
+    flag: '🇺🇸',
     label: 'United States — passport / visa',
     size: '2 × 2 in',
     w: 50.8,
@@ -18,6 +20,7 @@ export const PRESETS = [
   },
   {
     id: 'uk',
+    flag: '🇬🇧',
     label: 'United Kingdom — passport',
     size: '35 × 45 mm',
     w: 35,
@@ -28,6 +31,7 @@ export const PRESETS = [
   },
   {
     id: 'icao',
+    flag: '🇪🇺',
     label: 'Schengen / EU, Australia & most countries',
     size: '35 × 45 mm',
     w: 35,
@@ -38,6 +42,7 @@ export const PRESETS = [
   },
   {
     id: 'ca',
+    flag: '🇨🇦',
     label: 'Canada — passport',
     size: '50 × 70 mm',
     w: 50,
@@ -48,6 +53,7 @@ export const PRESETS = [
   },
   {
     id: 'cn',
+    flag: '🇨🇳',
     label: 'China — passport / visa',
     size: '33 × 48 mm',
     w: 33,
@@ -59,6 +65,7 @@ export const PRESETS = [
   },
   {
     id: 'custom',
+    flag: '📐',
     label: 'Custom size…',
     custom: true,
     w: 35,
