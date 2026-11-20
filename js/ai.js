@@ -12,6 +12,8 @@ let landmarker = null;
 let segmenter = null;
 
 // Fetch a model ourselves so we can show download progress.
+// Content-Length is only an estimate: hosts like GitHub Pages serve gzip, so it is the
+// compressed size while the stream yields decompressed bytes. Never size buffers from it.
 async function fetchWithProgress(url, onBytes) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Could not load ${url} (${res.status})`);
@@ -22,14 +24,20 @@ async function fetchWithProgress(url, onBytes) {
     return buf;
   }
   const reader = res.body.getReader();
-  const out = new Uint8Array(total);
+  const chunks = [];
   let got = 0;
   for (;;) {
     const { done, value } = await reader.read();
     if (done) break;
-    out.set(value, got);
+    chunks.push(value);
     got += value.length;
-    onBytes(got, total);
+    onBytes(got, Math.max(total, got));
+  }
+  const out = new Uint8Array(got);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.length;
   }
   return out;
 }
