@@ -18,6 +18,16 @@ export const axes = (angle) => ({
 // Used only when the segmentation mask can't locate the top of the head.
 const CROWN_ESTIMATE = 0.3;
 
+// Check limits, shared by runChecks and fitInside.
+const TOL_MM = 0.2; // slack on head size / eye height ranges
+const MAX_CENTER_OFFSET = 0.05; // fraction of the photo width
+const MAX_LEVEL_SNAP = 1; // degrees: a box this close to level may be levelled to fit the photo
+
+// Original-background limits (see backgroundStats in matte.js).
+const BG_MIN_LUMA = 150; // median brightness, 0–255
+const BG_MAX_SPREAD = 70; // brightness range of the middle 90% of background samples
+const BG_MAX_BUSY = 0.1; // share of neighbouring samples that jump in brightness
+
 export function analyzeFace(face, W, H) {
   const lm = face.landmarks;
   const P = (i) => ({ x: lm[i].x * W, y: lm[i].y * H });
@@ -150,7 +160,7 @@ export function headTarget(face, crown, spec) {
   return { crownY, chinY: crownY + headMm, headMm };
 }
 
-export function suggestBox(face, crown, spec) {
+export function suggestBox(face, crown, spec, W, H) {
   const { e1, e2 } = face;
   const headPx = dot(sub(face.chin, crown), e2);
   const target = headTarget(face, crown, spec);
@@ -160,7 +170,40 @@ export function suggestBox(face, crown, spec) {
   // Face centre horizontally; crown at its target height.
   const u = dot(face.center, e1);
   const v = dot(crown, e2) - (target.crownY * ppm - h / 2);
-  return { cx: u * e1.x + v * e2.x, cy: u * e1.y + v * e2.y, w, h, angle: face.theta };
+  const box = { cx: u * e1.x + v * e2.x, cy: u * e1.y + v * e2.y, w, h, angle: face.theta };
+  return fitInside(box, face, crown, spec, W, H);
+}
+
+// If the box hangs slightly past the photo, level it, shrink it and/or slide it inside,
+// but only if the result still passes the size and position checks. Typical case: a photo
+// that is already cropped to size, where the AI's measurements are a few pixels and a
+// fraction of a degree off, so the ideal box overhangs the edges by a hair.
+function fitInside(box, face, crown, spec, W, H) {
+  if (!overhangs(box, W, H) || Math.abs(box.angle) * DEG > MAX_LEVEL_SNAP) return box;
+  const k = Math.min(1, W / box.w, H / box.h);
+  const w = box.w * k;
+  const h = box.h * k;
+  const fitted = {
+    cx: Math.min(Math.max(box.cx, w / 2), W - w / 2),
+    cy: Math.min(Math.max(box.cy, h / 2), H - h / 2),
+    w,
+    h,
+    angle: 0,
+  };
+  const m = measure(face, crown, fitted, spec);
+  const within = (v, [lo, hi]) => v >= lo - TOL_MM && v <= hi + TOL_MM;
+  const ok =
+    within(m.headMm, spec.head) &&
+    (!spec.eyeFromBottom || within(m.eyeFromBottomMm, spec.eyeFromBottom)) &&
+    (spec.topMargin == null || Math.abs(m.crownMm - spec.topMargin) <= 1) &&
+    m.crownMm >= 0.5 &&
+    m.chinMm <= spec.h - 0.5 &&
+    Math.abs(m.centerOffsetMm) <= spec.w * MAX_CENTER_OFFSET;
+  return ok ? fitted : box;
+}
+
+function overhangs(box, W, H) {
+  return boxCorners(box).some((p) => p.x < -1 || p.y < -1 || p.x > W + 1 || p.y > H + 1);
 }
 
 // Fallback when no face is found: the largest centred box that fits the photo.
@@ -220,10 +263,11 @@ function fmtLen(mm, spec) {
   return spec.units === 'in' ? `${(mm / 25.4).toFixed(2)} in` : `${mm.toFixed(1)} mm`;
 }
 
-// Returns [{ status: 'pass'|'warn'|'fail'|'info', label, detail }]
-export function runChecks({ face, faceCount, crown, box, spec, W, H, outW, bgMode }) {
+// Returns [{ status: 'pass'|'warn'|'fail'|'info', label, detail, fix }]
+// fix names the settings card that resolves the problem ('background'), if any.
+export function runChecks({ face, faceCount, crown, box, spec, W, H, outW, bgMode, background }) {
   const out = [];
-  const push = (status, label, detail = '') => out.push({ status, label, detail });
+  const push = (status, label, detail = '', fix = null) => out.push({ status, label, detail, fix });
 
   if (!face) {
     push('fail', 'No face detected', 'Try a sharper, front-facing photo — or position the box by hand.');
@@ -231,7 +275,7 @@ export function runChecks({ face, faceCount, crown, box, spec, W, H, outW, bgMod
     if (faceCount > 1) push('warn', `${faceCount} faces found`, 'Using the largest. The photo must show only you.');
     const m = measure(face, crown.point, box, spec);
     const [hMin, hMax] = spec.head;
-    const tol = 0.2;
+    const tol = TOL_MM;
     push(
       m.headMm >= hMin - tol && m.headMm <= hMax + tol ? 'pass' : 'fail',
       `Head size ${fmtLen(m.headMm, spec)}`,
@@ -248,7 +292,7 @@ export function runChecks({ face, faceCount, crown, box, spec, W, H, outW, bgMod
     if (m.crownMm < 0.5 || m.chinMm > spec.h - 0.5) {
       push('fail', 'Head is cut off', 'The whole head, from chin to the top of the hair, must be inside the photo.');
     }
-    if (Math.abs(m.centerOffsetMm) > spec.w * 0.05) {
+    if (Math.abs(m.centerOffsetMm) > spec.w * MAX_CENTER_OFFSET) {
       push('warn', 'Face is off-centre', 'Centre the face horizontally.');
     }
     if (Math.abs(m.tiltDeg) > 2) {
@@ -283,16 +327,24 @@ export function runChecks({ face, faceCount, crown, box, spec, W, H, outW, bgMod
     push('pass', 'Sharp enough');
   }
 
-  const outside = boxCorners(box).some((p) => p.x < -1 || p.y < -1 || p.x > W + 1 || p.y > H + 1);
-  if (outside) {
+  if (overhangs(box, W, H)) {
     push(
       'warn',
       'Crop goes past the photo edge',
       bgMode === 'color' ? 'The gap is filled with the background colour.' : 'The gap is filled with white. Replacing the background hides it.'
     );
   }
-  if (bgMode === 'color') push('pass', 'Background replaced');
-  else push('info', 'Original background', 'It must be plain and light. Use “Replace” for a clean, even colour.');
+  if (bgMode === 'color') {
+    push('pass', 'Background replaced');
+  } else if (!background) {
+    push('info', 'Original background', 'It must be plain and light. Use “Replace” for a clean, even colour.');
+  } else if (background.luma < BG_MIN_LUMA) {
+    push('warn', 'Background is too dark', 'Most countries need a white or light background. Use “Replace” for a clean, even colour.', 'background');
+  } else if (background.spread > BG_MAX_SPREAD || background.busy > BG_MAX_BUSY) {
+    push('warn', 'Background isn’t plain', 'Shadows, patterns or objects show behind you. Use “Replace” for a clean, even colour.', 'background');
+  } else {
+    push('pass', 'Plain, light background');
+  }
 
   return out;
 }

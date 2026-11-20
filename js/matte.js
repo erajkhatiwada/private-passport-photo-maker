@@ -1,5 +1,6 @@
 // Person matte for background replacement: segment a region, refine edges, build a cutout.
 import { segmentPerson } from './ai.js';
+import { axes } from './geometry.js';
 
 const MAX_MATTE_SIDE = 1024; // processing resolution for the mask
 const MAX_CUTOUT_SIDE = 2400; // resolution of the cut-out photo
@@ -27,7 +28,60 @@ export function computeMatte(source, region) {
   for (let i = 0; i < refined.length; i++) refined[i] = Math.min(1, Math.max(0, refined[i]));
   canvas.width = 0;
 
-  return { region, scale, width, height, alpha: refined };
+  // rgba (the region at mask resolution) is kept for backgroundStats.
+  return { region, scale, width, height, alpha: refined, rgba };
+}
+
+// Brightness and plainness of the original background inside the crop box, sampled on a
+// grid. Only clear background counts: points where the mask, and the mask a little way
+// around them, is not the person (keeps hair and soft edges out). Returns null when too
+// little background is visible to judge.
+export function backgroundStats(matte, box) {
+  const N = 48;
+  const { region, scale, width, height, alpha, rgba } = matte;
+  const { e1, e2 } = axes(box.angle);
+  const d = Math.max(2, Math.round(Math.max(width, height) / 128));
+  // The mask stays around 0.05–0.1 on clear background, never 0.
+  const isBg = (mx, my) => mx >= 0 && my >= 0 && mx < width && my < height && alpha[my * width + mx] < 0.2;
+  const lum = new Float32Array(N * N).fill(NaN);
+  const values = [];
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const u = ((i + 0.5) / N - 0.5) * box.w;
+      const v = ((j + 0.5) / N - 0.5) * box.h;
+      const mx = Math.round((box.cx + e1.x * u + e2.x * v - region.x) * scale);
+      const my = Math.round((box.cy + e1.y * u + e2.y * v - region.y) * scale);
+      if (!isBg(mx, my) || !isBg(mx - d, my) || !isBg(mx + d, my) || !isBg(mx, my - d) || !isBg(mx, my + d)) continue;
+      const k = (my * width + mx) * 4;
+      const L = 0.2126 * rgba[k] + 0.7152 * rgba[k + 1] + 0.0722 * rgba[k + 2];
+      lum[j * N + i] = L;
+      values.push(L);
+    }
+  }
+  if (values.length < N * N * 0.1) return null;
+
+  values.sort((a, b) => a - b);
+  const pct = (p) => values[Math.floor(p * (values.length - 1))];
+  // Texture: share of neighbouring samples whose brightness jumps (patterns, objects, edges).
+  // Smooth lighting falloff changes brightness only slowly, so it doesn't count.
+  let pairs = 0;
+  let jumps = 0;
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const a = lum[j * N + i];
+      if (Number.isNaN(a)) continue;
+      for (const b of [i + 1 < N ? lum[j * N + i + 1] : NaN, j + 1 < N ? lum[(j + 1) * N + i] : NaN]) {
+        if (Number.isNaN(b)) continue;
+        pairs++;
+        if (Math.abs(a - b) > 12) jumps++;
+      }
+    }
+  }
+  return {
+    luma: pct(0.5), // median brightness, 0–255
+    spread: pct(0.95) - pct(0.05), // brightness range of the middle 90%
+    busy: pairs ? jumps / pairs : 0,
+  };
 }
 
 // edge: 0 (soft, keeps more hair) … 1 (tight, trims halos)
